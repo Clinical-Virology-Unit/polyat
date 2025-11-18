@@ -41,11 +41,14 @@ Arguments:
 `polyat` always writes `polyA_counts.txt` inside the output directory, counting
 each read at most once per threshold (≥10/15/20 nt).
 
-
 ## Citation
 
-If you use polyat in your research, please cite the authors and Zenodo record
-listed in `CITATION.cff`.
+If you use polyat in your research, please cite:
+
+```
+Jansen, D., Laumen, J., Siebenmann, E., & Vercauteren, K. (2025). polyat: Poly-A/T summarization (v0.1.0). [https://doi.org/10.5281/zenodo.17640044](https://doi.org/10.5281/zenodo.17640044).
+
+```
 
 ## License
 
