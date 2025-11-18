@@ -12,7 +12,7 @@ authors:
   - family-names: Vercauteren
     given-names: Koen
     orcid: https://orcid.org/0000-0003-1472-9938
-doi: ""
+doi: "10.5281/zenodo.17640044"
 title: "polyat: Poly-A/T summarization"
 version: v0.1.0
 url: https://github.com/DaanJansen94/polyat
