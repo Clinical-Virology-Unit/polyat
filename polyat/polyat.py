@@ -158,13 +158,13 @@ def build_filterable_table(
         )
     parts.extend(
         [
-        f"<table data-filterable='true' id='{escape(table_id)}'>",
+            f"<table data-filterable='true' data-sortable='true' id='{escape(table_id)}'>",
         "<thead>",
         "<tr>",
         ]
     )
     for label, _type in headers:
-        parts.append(f"<th>{escape(label)}</th>")
+        parts.append(f"<th class='sortable'>{escape(label)}</th>")
     parts.append("</tr>")
     parts.append("<tr class='filters'>")
     for idx, (_label, col_type) in enumerate(headers):
@@ -211,12 +211,17 @@ def write_html_summary(
         ".hist-tooltip{position:absolute;padding:6px 10px;background:rgba(0,0,0,0.75);"
         "color:#fff;border-radius:4px;font-size:12px;pointer-events:none;"
         "transform:translate(-50%,-120%);white-space:nowrap;display:none;z-index:10;}"
+        ".download-controls{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;}"
         ".download-btn{display:inline-block;margin:8px 0;padding:6px 12px;border:1px solid #4a90e2;"
         "background:#4a90e2;color:#fff;border-radius:4px;cursor:pointer;font-size:0.9rem;}"
         ".download-btn:hover{background:#3b78c2;border-color:#3b78c2;}"
         "table{border-collapse:collapse;width:100%;font-family:Arial,sans-serif;}"
         "th,td{border:1px solid #ccc;padding:8px;text-align:center;}"
         "th{background-color:#f4f4f4;}"
+        "th.sortable{cursor:pointer;position:relative;user-select:none;}"
+        "th.sortable::after{content:'\\2195';font-size:0.8em;color:#666;margin-left:6px;}"
+        "th.sortable[data-sort='asc']::after{content:'\\2191';}"
+        "th.sortable[data-sort='desc']::after{content:'\\2193';}"
         ".filters th{background-color:#fafafa;}"
         ".filters input{width:100%;box-sizing:border-box;padding:4px;}"
         "tr:nth-child(even){background:#fafafa;}"
@@ -279,6 +284,44 @@ def write_html_summary(
         "downloadBlob(tsv, filename, 'text/tab-separated-values');"
         "});"
         "});"
+        "function getColumnType(table,columnIndex){"
+        "const filterInput=table.querySelector(`thead tr.filters input[data-col=\"${columnIndex}\"]`);"
+        "return filterInput ? filterInput.dataset.type : 'text';"
+        "}"
+        "function sortTable(table,columnIndex,header){"
+        "const tbody=table.querySelector('tbody');"
+        "if(!tbody)return;"
+        "const rows=Array.from(tbody.querySelectorAll('tr'));"
+        "const type=getColumnType(table,columnIndex);"
+        "const current=header.dataset.sort || 'none';"
+        "const direction=current==='asc'?'desc':'asc';"
+        "table.querySelectorAll('thead tr:first-child th').forEach(th=>{"
+        "if(th!==header){th.removeAttribute('data-sort');}"
+        "});"
+        "header.dataset.sort=direction;"
+        "const multiplier=direction==='asc'?1:-1;"
+        "rows.sort((rowA,rowB)=>{"
+        "const cellA=rowA.children[columnIndex]?.innerText.trim()||'';"
+        "const cellB=rowB.children[columnIndex]?.innerText.trim()||'';"
+        "if(type==='number'){"
+        "const aVal=parseFloat(cellA.replace(/,/g,''))||0;"
+        "const bVal=parseFloat(cellB.replace(/,/g,''))||0;"
+        "return (aVal - bVal)*multiplier;"
+        "}"
+        "return cellA.localeCompare(cellB,undefined,{numeric:true,sensitivity:'base'})*multiplier;"
+        "});"
+        "rows.forEach(row=>tbody.appendChild(row));"
+        "}"
+        "function initTableSorting(){"
+        "document.querySelectorAll('table[data-sortable]').forEach(table=>{"
+        "const headerRow=table.querySelector('thead tr');"
+        "if(!headerRow)return;"
+        "headerRow.querySelectorAll('th').forEach((th,index)=>{"
+        "th.classList.add('sortable');"
+        "th.addEventListener('click',()=>sortTable(table,index,th));"
+        "});"
+        "});"
+        "}"
         f"const histogramData = {histogram_json};"
         f"const histogramSamples = {sample_json};"
         f"const combinedHistogramData = {combined_json};"
@@ -386,6 +429,17 @@ def write_html_summary(
         "zero:'All combined counts are zero.'"
         "});"
         "}"
+        "function getCanvasWithBackground(canvas, scaleFactor=2){"
+        "const exportCanvas=document.createElement('canvas');"
+        "exportCanvas.width=canvas.width*scaleFactor;"
+        "exportCanvas.height=canvas.height*scaleFactor;"
+        "const ctx=exportCanvas.getContext('2d');"
+        "ctx.scale(scaleFactor,scaleFactor);"
+        "ctx.fillStyle='#fff';"
+        "ctx.fillRect(0,0,canvas.width,canvas.height);"
+        "ctx.drawImage(canvas,0,0);"
+        "return exportCanvas;"
+        "}"
         "function attachCanvasHover(canvas, getBars){"
         "if(!canvas)return;"
         "canvas.addEventListener('mousemove', event=>{"
@@ -404,8 +458,9 @@ def write_html_summary(
         "}"
         "function downloadCanvasImage(targetCanvas, filename){"
         "if(!targetCanvas)return;"
+        "const exportCanvas=getCanvasWithBackground(targetCanvas,2);"
         "const link=document.createElement('a');"
-        "link.href=targetCanvas.toDataURL('image/png');"
+        "link.href=exportCanvas.toDataURL('image/png');"
         "link.download=filename;"
         "document.body.appendChild(link);"
         "link.click();"
@@ -449,6 +504,7 @@ def write_html_summary(
         "renderCombinedHistogram();"
         "}"
         "initHistogram();"
+        "initTableSorting();"
     )
     parts = [
         "<!DOCTYPE html>",
@@ -471,14 +527,18 @@ def write_html_summary(
         f"<h2>polyA/T Histogram (>={HISTOGRAM_MIN_LENGTH} nt)</h2>",
         "<label for='histogram-sample'>Sample</label>",
         "<select id='histogram-sample'></select>",
+        "<div class='download-controls'>",
         "<button id='download-sample-histogram' class='download-btn'>Download histogram (PNG)</button>",
-        "<canvas id='histogram-canvas' width='900' height='400'></canvas>",
+        "</div>",
+        "<canvas id='histogram-canvas' width='1600' height='600'></canvas>",
         "<div id='histogram-tooltip' class='hist-tooltip'></div>",
         "</section>",
         "<section id='histogram-section-all'>",
         "<h2>Combined polyA/T Histogram</h2>",
+        "<div class='download-controls'>",
         "<button id='download-combined-histogram' class='download-btn'>Download combined histogram (PNG)</button>",
-        "<canvas id='histogram-canvas-all' width='900' height='400'></canvas>",
+        "</div>",
+        "<canvas id='histogram-canvas-all' width='1600' height='600'></canvas>",
         "</section>",
         build_filterable_table(
             "polyat-position-table",
