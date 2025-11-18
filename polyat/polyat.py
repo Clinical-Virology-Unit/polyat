@@ -5,6 +5,7 @@ import gzip
 import json
 import sys
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from html import escape
 from pathlib import Path
 from statistics import median
@@ -32,6 +33,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--output",
         required=True,
         help="Directory where the summary table will be written.",
+    )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        type=int,
+        default=1,
+        help="Number of worker threads (default: 1).",
     )
     return parser.parse_args(argv)
 
@@ -108,6 +116,14 @@ def count_poly_runs(
                     end_offset = len(seq) - (start_idx + longest)
                     positions.append(min(start_idx, end_offset))
     return total, poly10, poly15, poly20, dict(histogram), positions
+
+
+def analyze_file(
+    file_path: Path,
+) -> tuple[str, int, int, int, int, dict[int, int], list[int]]:
+    sample = sanitize_sample_name(file_path)
+    total, poly10, poly15, poly20, histogram, positions = count_poly_runs(file_path)
+    return sample, total, poly10, poly15, poly20, histogram, positions
 
 
 def longest_poly_run(sequence: str) -> tuple[int, int | None]:
@@ -585,6 +601,9 @@ def main(argv: list[str] | None = None) -> None:
     fastq_files = find_fastq_files(input_dir)
     if not fastq_files:
         sys.exit(f"[error] No FASTQ/FASTQ.GZ files found in {input_dir}")
+    threads = args.threads
+    if threads < 1:
+        sys.exit("[error] --threads must be >= 1")
 
     summary_headers = [
         ("Sample", "text"),
@@ -602,18 +621,23 @@ def main(argv: list[str] | None = None) -> None:
     position_data: dict[str, list[int]] = {}
     sample_order: list[str] = []
 
+    if threads == 1:
+        analysis_results = [analyze_file(file_path) for file_path in fastq_files]
+    else:
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            analysis_results = list(executor.map(analyze_file, fastq_files))
+
     with open(output_file, "w", encoding="utf-8") as out_handle:
         out_handle.write(header_line + "\n")
-        for file_path in fastq_files:
-            sample = sanitize_sample_name(file_path)
-            (
-                total,
-                poly10,
-                poly15,
-                poly20,
-                histogram,
-                positions,
-            ) = count_poly_runs(file_path)
+        for (
+            sample,
+            total,
+            poly10,
+            poly15,
+            poly20,
+            histogram,
+            positions,
+        ) in analysis_results:
             pct10 = format_percent(poly10, total)
             pct15 = format_percent(poly15, total)
             pct20 = format_percent(poly20, total)
