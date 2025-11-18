@@ -1,10 +1,6 @@
 # polyat
 
-polyat is a command-line tool that scans FASTQ files for poly-A/T homopolymers 
-typically derived from carrier RNA (such as those in the QIAamp Viral RNA Mini Kit). 
-Each read is evaluated once; the tool reports how many reads contain ≥10, ≥15, or ≥20 
-identical A/T bases together with their relative percentages. The result is a
-concise `polyA_counts.txt` table you can use for quick QC across samples.
+polyat is a command-line tool that scans FASTQ files for poly-A/T homopolymers typically derived from carrier RNA (such as those in the QIAamp Viral RNA Mini Kit). Each read is evaluated once; the tool reports how many reads contain ≥10, ≥15, or ≥20 identical A/T bases together with their relative percentages. The result is a concise `polyA_counts.txt` table you can use for quick QC across samples.
 
 ## Features
 
@@ -47,7 +43,6 @@ If you use polyat in your research, please cite:
 
 ```
 Jansen, D., Laumen, J., Siebenmann, E., & Vercauteren, K. (2025). polyat: Poly-A/T summarization (v0.1.0). [https://doi.org/10.5281/zenodo.17640044](https://doi.org/10.5281/zenodo.17640044).
-
 ```
 
 ## License
