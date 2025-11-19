@@ -11,8 +11,21 @@ polyat is a command-line tool that scans FASTQ files for poly-A/T homopolymers t
 
 ## Installation
 
-Clone and install from source code:
+### Prerequisites
+First, install conda if you haven't already:
+```bash
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+```
 
+### Option 1: Using Conda (Recommended)
+Install Install [polyat via Conda](https://anaconda.org/bioconda/polyat):
+```bash
+conda create -n polyat -c conda-forge -c bioconda polyat -y
+conda activate polyat
+```
+
+### Option 2: From Source Code
 ```bash
 git clone https://github.com/DaanJansen94/polyat.git
 cd polyat
